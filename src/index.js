@@ -6,7 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import { connectDB } from './lib/db.js';
 import job from './lib/cron.js';
 import categoryRoutes from './routes/categoryRoutes.js';
-
+import blogRoutes from './routes/blogRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 3005;
 
@@ -16,6 +16,7 @@ app.use(cors());
 app.use("/api/auth" , authRoutes)
 // app.use("/api/books" , booksRoutes)
 app.use("/api/categories", categoryRoutes);
+app.use('/api/blogs', blogRoutes);
 app.listen(PORT , ()=>{
   console.log(`Server is running on ${PORT}`)
   connectDB();

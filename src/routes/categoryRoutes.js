@@ -166,5 +166,23 @@ router.delete('/:categoryId', protectRoute, async (req, res) => {
     }
 });
 
+// GET /api/categories/list - Get all categories with id and name (Private)
+router.get('/list', protectRoute, async (req, res) => {
+    try {
+      const categories = await Category.find({ userId: req.user._id }).select('_id name').sort({ name: 1 });
+  
+      res.status(200).json({
+        status: 200,
+        message: "Category list fetched successfully",
+        data: categories
+      });
+    } catch (error) {
+      console.error("Error fetching category list:", error);
+      res.status(500).json({
+        status: 500,
+        message: "Internal server error"
+      });
+    }
+  });
 
 export default router;

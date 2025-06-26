@@ -58,14 +58,14 @@ router.post("/register" ,async(req ,res)=>{
 router.post("/login" ,async(req ,res)=>{
  try {
   const {email , password} = req.body;
-  if (!email || !password) return res.status(400).json({message:"All feilds are required"})
+  if (!email || !password) return res.status(400).json({status: 400,message:"All feilds are required"})
     //check if user exits
   const user = await User.findOne({email});
-  if(!user) return  res.status(400).json({message:"User does not exit"})
+  if(!user) return  res.status(400).json({ status: 400,message:"User does not exit"})
   // Check if password is correct
   const isPasswordCorrect = await user.comparePassword(password);
   if (!isPasswordCorrect)
-    return res.status(400).json({ message: "Invalid credentials" });
+    return res.status(400).json({    status: 400,message: "Invalid credentials" });
     //generate token after login
     const token = generateToken(user._id);
     res.status(200).json({

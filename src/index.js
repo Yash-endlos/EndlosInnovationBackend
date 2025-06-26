@@ -8,7 +8,7 @@ import job from './lib/cron.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3005;
 
 job.start();         // for physical phone make it open and for simulator make it close
 app.use(express.json());

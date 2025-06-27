@@ -400,7 +400,6 @@ router.delete('/:blogId', protectRoute, async (req, res) => {
     }
 });
 
-
 router.post('/public/search', async (req, res) => {
     try {
       const {
@@ -443,7 +442,38 @@ router.post('/public/search', async (req, res) => {
         message: "Internal server error"
       });
     }
+});
+
+// GET /api/blogs/public/view/:blogId - View single blog (Public)
+router.get('/public/view/:blogId', async (req, res) => {
+    try {
+      const { blogId } = req.params;
+  
+      const blog = await Blog.findById(blogId)
+        .populate('categoryId', 'name') // Get category name instead of just ID
+        .lean(); // returns plain JS object (optional but improves performance)
+  
+      if (!blog) {
+        return res.status(404).json({
+          status: 404,
+          message: "Blog not found"
+        });
+      }
+  
+      res.status(200).json({
+        status: 200,
+        message: "Blog details fetched successfully",
+        data: blog
+      });
+    } catch (error) {
+      console.error("Error fetching blog by ID:", error);
+      res.status(500).json({
+        status: 500,
+        message: "Internal server error"
+      });
+    }
   });
+  
 
 
 export default router;

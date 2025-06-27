@@ -183,6 +183,6 @@ router.get('/list', protectRoute, async (req, res) => {
         message: "Internal server error"
       });
     }
-  });
+});
 
 export default router;

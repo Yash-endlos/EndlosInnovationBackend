@@ -3,11 +3,13 @@ import protectRoute from '../middleware/auth.middleware.js';
 import Blog from '../models/Blog.js';
 import upload from '../middleware/upload.js';
 import cloudinary from '../lib/cloudinary.js';
-
+import * as cheerio from 'cheerio';
 const router = express.Router();
 
-// POST /api/blogs - Create blog (Private)
-// router.post('/', protectRoute, async (req, res) => {
+
+
+// post api for uploading image also
+// router.post('/', protectRoute, upload.single('image'), async (req, res) => {
 //     try {
 //         const {
 //             title,
@@ -18,25 +20,19 @@ const router = express.Router();
 //             description
 //         } = req.body;
 
-//         // Validate all required fields
 //         if (!title || !categoryId || !postedBy || !blogContent || !keywords || !description) {
-//             return res.status(400).json({
-//                 status: 400,
-//                 message: "All fields are required"
-//             });
+//             return res.status(400).json({ status: 400, message: "All fields are required" });
+//         }
+//         console.log("blogContent: ",blogContent)
+//         const existingBlog = await Blog.findOne({ title: title.trim(), userId: req.user._id });
+//         if (existingBlog) {
+//             return res.status(409).json({ status: 409, message: "Blog with this title already exists" });
 //         }
 
-//         // ✅ Check for existing blog with the same title by this user
-//         const existingBlog = await Blog.findOne({
-//             title: title.trim(),
-//             userId: req.user._id
-//         });
-
-//         if (existingBlog) {
-//             return res.status(409).json({
-//                 status: 409,
-//                 message: "Blog with this title already exists"
-//             });
+//         // ⬇️ Upload image if provided
+//         let imageUrl = '';
+//         if (req.file) {
+//             imageUrl = await uploadToCloudinary(req.file.buffer);
 //         }
 
 //         const blog = new Blog({
@@ -46,6 +42,7 @@ const router = express.Router();
 //             blogContent,
 //             keywords,
 //             description,
+//             image: imageUrl,
 //             postedOn: new Date(),
 //             userId: req.user._id
 //         });
@@ -60,65 +57,69 @@ const router = express.Router();
 
 //     } catch (error) {
 //         console.error("Error creating blog:", error);
-//         res.status(500).json({
-//             status: 500,
-//             message: "Internal server error"
-//         });
+//         res.status(500).json({ status: 500, message: "Internal server error" });
 //     }
 // });
 
-// post api for uploading image also
 router.post('/', protectRoute, upload.single('image'), async (req, res) => {
     try {
-        const {
-            title,
-            categoryId,
-            postedBy,
-            blogContent,
-            keywords,
-            description
-        } = req.body;
-
-        if (!title || !categoryId || !postedBy || !blogContent || !keywords || !description) {
-            return res.status(400).json({ status: 400, message: "All fields are required" });
-        }
-
-        const existingBlog = await Blog.findOne({ title: title.trim(), userId: req.user._id });
-        if (existingBlog) {
-            return res.status(409).json({ status: 409, message: "Blog with this title already exists" });
-        }
-
-        // ⬇️ Upload image if provided
-        let imageUrl = '';
-        if (req.file) {
-            imageUrl = await uploadToCloudinary(req.file.buffer);
-        }
-
-        const blog = new Blog({
-            title: title.trim(),
-            categoryId,
-            postedBy,
-            blogContent,
-            keywords,
-            description,
-            image: imageUrl,
-            postedOn: new Date(),
-            userId: req.user._id
-        });
-
-        await blog.save();
-
-        res.status(201).json({
-            status: 201,
-            message: "Blog created successfully",
-            data: blog
-        });
-
+      const {
+        title,
+        categoryId,
+        postedBy,
+        blogContent,
+        keywords,
+        description
+      } = req.body;
+  
+      if (!title || !categoryId || !postedBy || !blogContent || !keywords || !description) {
+        return res.status(400).json({ status: 400, message: "All fields are required" });
+      }
+  
+      // ✅ Check for existing title
+      const existingBlog = await Blog.findOne({ title: title.trim(), userId: req.user._id });
+      if (existingBlog) {
+        return res.status(409).json({ status: 409, message: "Blog with this title already exists" });
+      }
+    
+      // ✅ Upload image if provided
+      let imageUrl = '';
+      if (req.file) {
+        imageUrl = await uploadToCloudinary(req.file.buffer);
+      }
+  
+      // ✅ Inject style into all <img> tags inside blogContent
+      const $ = cheerio.load(blogContent);
+      $('img').each(function () {
+        $(this).attr('style', 'max-width: 100%; height: auto; display: block; margin: 20px auto;');
+      });
+      const styledContent = $.html(); // Final HTML with styled <img> tags
+      console.log("blogContent: ",blogContent)
+      const blog = new Blog({
+        title: title.trim(),
+        categoryId,
+        postedBy,
+        blogContent: styledContent, // ✅ Save updated content
+        keywords,
+        description,
+        image: imageUrl,
+        postedOn: new Date(),
+        userId: req.user._id
+      });
+  
+      await blog.save();
+  
+      res.status(201).json({
+        status: 201,
+        message: "Blog created successfully",
+        data: blog
+      });
+  
     } catch (error) {
-        console.error("Error creating blog:", error);
-        res.status(500).json({ status: 500, message: "Internal server error" });
+      console.error("Error creating blog:", error);
+      res.status(500).json({ status: 500, message: "Internal server error" });
     }
-});
+  });
 
 // helper function to await upload
 const uploadToCloudinary = (fileBuffer) => {
@@ -402,78 +403,78 @@ router.delete('/:blogId', protectRoute, async (req, res) => {
 
 router.post('/public/search', async (req, res) => {
     try {
-      const {
-        start = 0,
-        recordSize = 10,
-        orderType = 1,
-        orderParam = 'createdAt'
-      } = req.query;
-  
-      const { search = '' } = req.body;
-  
-      const query = {
-        title: { $regex: search, $options: 'i' } // Case-insensitive search on title
-      };
-  
-      const totalRecords = await Blog.countDocuments(query);
-  
-      const blogs = await Blog.find(query)
-        .populate('categoryId', 'name') // Show category name
-        .skip(parseInt(start))
-        .limit(parseInt(recordSize))
-        .sort({ [orderParam]: parseInt(orderType) });
-  
-      res.status(200).json({
-        status: 200,
-        message: "Public blogs fetched successfully",
-        data: blogs,
-        pagination: {
-          totalRecords,
-          start: parseInt(start),
-          recordSize: parseInt(recordSize),
-          orderType: parseInt(orderType),
-          orderParam
-        }
-      });
+        const {
+            start = 0,
+            recordSize = 10,
+            orderType = 1,
+            orderParam = 'createdAt'
+        } = req.query;
+
+        const { search = '' } = req.body;
+
+        const query = {
+            title: { $regex: search, $options: 'i' } // Case-insensitive search on title
+        };
+
+        const totalRecords = await Blog.countDocuments(query);
+
+        const blogs = await Blog.find(query)
+            .populate('categoryId', 'name') // Show category name
+            .skip(parseInt(start))
+            .limit(parseInt(recordSize))
+            .sort({ [orderParam]: parseInt(orderType) });
+
+        res.status(200).json({
+            status: 200,
+            message: "Public blogs fetched successfully",
+            data: blogs,
+            pagination: {
+                totalRecords,
+                start: parseInt(start),
+                recordSize: parseInt(recordSize),
+                orderType: parseInt(orderType),
+                orderParam
+            }
+        });
     } catch (error) {
-      console.error("Error in public blog search:", error);
-      res.status(500).json({
-        status: 500,
-        message: "Internal server error"
-      });
+        console.error("Error in public blog search:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error"
+        });
     }
 });
 
 // GET /api/blogs/public/view/:blogId - View single blog (Public)
 router.get('/public/view/:blogId', async (req, res) => {
     try {
-      const { blogId } = req.params;
-  
-      const blog = await Blog.findById(blogId)
-        .populate('categoryId', 'name') // Get category name instead of just ID
-        .lean(); // returns plain JS object (optional but improves performance)
-  
-      if (!blog) {
-        return res.status(404).json({
-          status: 404,
-          message: "Blog not found"
+        const { blogId } = req.params;
+
+        const blog = await Blog.findById(blogId)
+            .populate('categoryId', 'name') // Get category name instead of just ID
+            .lean(); // returns plain JS object (optional but improves performance)
+
+        if (!blog) {
+            return res.status(404).json({
+                status: 404,
+                message: "Blog not found"
+            });
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: "Blog details fetched successfully",
+            data: blog
         });
-      }
-  
-      res.status(200).json({
-        status: 200,
-        message: "Blog details fetched successfully",
-        data: blog
-      });
     } catch (error) {
-      console.error("Error fetching blog by ID:", error);
-      res.status(500).json({
-        status: 500,
-        message: "Internal server error"
-      });
+        console.error("Error fetching blog by ID:", error);
+        res.status(500).json({
+            status: 500,
+            message: "Internal server error"
+        });
     }
-  });
-  
+});
+
 
 
 export default router;
